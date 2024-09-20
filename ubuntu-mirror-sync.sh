@@ -5,7 +5,7 @@
 ## Point our log file to somewhere and setup our admin email
 log=/var/log/mirrorsync.log
 
-adminmail=root
+adminmail=pahp@d.umn.edu
 # Set to 0 if you do not want to receive email
 sendemail=1
 
@@ -40,7 +40,7 @@ do
         if [[ $1 == "debug" ]]; then
 		# debug, print to stdout
                 echo "Working on attempt number $failures"
-                rsync -a --delete-after --progress $remote $local
+                rsync -avP --delete-after --progress $remote $local
                 status=$?
         else
 		# not debug -- log to logfile
@@ -65,7 +65,7 @@ done
 if [[ -x /usr/bin/mail && "$sendemail" -eq "1" ]]; then
 
 MDSTAT=$(cat /proc/mdstat | grep -v "Personalities" | grep -v "unused devices")
-DISKFULL=$(df -h | grep "/dev/md0")
+DISKFULL=$(df -h | grep "/dev/md")
 
 if (( failures > 0 ))
 then
@@ -78,7 +78,7 @@ fi
 
 subject="$subject (run: $(date -u +%s))"
 
-mail -s "$subject" "$adminmail" <<OUTMAIL
+mail -a "From:root@mirror.d.umn.edu" -s "$subject" "$adminmail" <<OUTMAIL
 Summary of Ubuntu Mirror Synchronization
 PID: $pid
 $failline
