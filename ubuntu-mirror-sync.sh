@@ -13,7 +13,7 @@ sendemail=1
 subject="Ubuntu Mirror Sync "
 
 ## Setup the server to mirror
-remote=rsync://archive.ubuntu.com/ubuntu
+remote=rsync://us.rsync.archive.ubuntu.com/ubuntu
 
 ## Setup the local directory / Our mirror
 local=/var/www/html/ubuntu
