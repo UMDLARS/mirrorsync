@@ -13,52 +13,103 @@ sendemail=1
 subject="Ubuntu Mirror Sync "
 
 ## Setup the server to mirror
-remote=rsync://us.rsync.archive.ubuntu.com/ubuntu
+#RSYNCSOURCE=rsync://us.rsync.archive.ubuntu.com/ubuntu/
+RSYNCSOURCE=rsync://mirror.math.princeton.edu/pub/ubuntu/
 
 ## Setup the local directory / Our mirror
-local=/var/www/html/ubuntu
+BASEDIR=/var/www/html/ubuntu/
 
 ## Initialize some other variables
 complete="false"
 failures=0
+retries=2
 status=1
 pid=$$
+debugflags=""
 
-echo "`date +%x-%R` - $pid - Started Ubuntu Mirror Sync" >> $log
+fatal() {
+  echo "$1" >> $log
+  exit 1
+}
 
-while [[ "$complete" != "true" && $failures -lt 2 ]]; 
+warn() {
+  echo "$1" >> $log
+}
+
+
+if [[ $1 == "debug" ]]; then
+	debugflags="-vP"
+	echo "Extra verbosity enabled."
+	echo "To watch progress, run 'tail -f $log'..."
+	sleep 10
+fi
+
+warn "`date +%x-%R` - $pid - Started Ubuntu Mirror Sync" 
+
+if [ ! -d ${BASEDIR} ]; then
+  warn "${BASEDIR} does not exist yet, trying to create it..."
+  mkdir -p ${BASEDIR} || fatal "Creation of ${BASEDIR} failed."
+fi
+
+
+
+while [[ "$complete" != "true" && $failures -lt $retries ]]; 
 do
 
         if [[ $failures -gt 0 ]]; then
-                ## Sleep for 5 minutes for sanity's sake
+                ## Sleep for 10 minutes for sanity's sake
                 ## The most common reason for a failure at this point
 		## is that the server updated while you were syncing.
 
-                sleep 5m
+		warn " - we had a failure. Sleeping for 10m... ($failures failures)" 
+                sleep 10m
         fi
 
-        if [[ $1 == "debug" ]]; then
-		# debug, print to stdout
-                echo "Working on attempt number $failures"
-                rsync -avP --delete-after --progress $remote $local
-                status=$?
-        else
-		# not debug -- log to logfile
-                rsync -a --delete-after $remote $local >> $log
-                status=$?
-        fi
-        
-	# check status for failure
-        if [[ $status -ne "0" ]]; then
-		# we failed - increment fail count
-                complete="false"
-                (( failures += 1 ))
-        else
-		# success!
-                echo "`date +%x-%R` - $pid - Finished Ubuntu Mirror Sync" >> $log
-        	complete="true"
+	warn "Working on attempt $failures..."
 
-        fi
+	# step one of rsync
+	rsync -a $debugflags --recursive --times --links --safe-links --hard-links \
+	  --stats \
+	  --exclude "Packages*" --exclude "Sources*" \
+	  --exclude "Release*" --exclude "InRelease" \
+	  ${RSYNCSOURCE} ${BASEDIR} &>> $log
+	
+	status=$?
+
+	if [[ $status -ne "0" ]]
+	then	
+		warn "First stage of sync failed with status $status."
+		(( failures += 1))
+		continue
+	else
+		warn "First stage of rsync succeeded."
+	fi
+
+	# step two of rsync
+	rsync -a $debugflags --recursive --times --links --safe-links --hard-links \
+	  --stats --delete --delete-after \
+	  ${RSYNCSOURCE} ${BASEDIR} &>> $log
+
+	status=$?
+
+	if [[ $status -ne "0" ]]
+	then	
+		warn "Second stage of sync failed with status $status."
+		(( failures += 1 ))
+		continue
+	else
+		warn "Second stage of rsync succeeded."
+	fi
+
+	# if we got here, then we made it!
+
+        # write timestamp to mirror	
+	date -u > ${BASEDIR}/project/trace/$(hostname -f)
+
+	warn "Rsync succeeded with status: $status!"
+	warn "`date +%x-%R` - $pid - Finished Ubuntu Mirror Sync Successfully!"
+	complete="true"
+
 done
 
 # Send the email
@@ -70,9 +121,10 @@ DISKFULL=$(df -h | grep "/dev/md")
 if (( failures > 0 ))
 then
 	subject="$subject -- ***FAILURES***"
-	failline="There were $failures failures."
+	failline="There were $failures failures (complete: $complete)."
+	loglines="The last 20 lines of $log were:\n\n$(tail -n 20 $log)"
 else
-	subject="$subject -- OK"
+	subject="$subject -- OK (complete: $complete)"
 	failline="There were no failures."
 fi
 
@@ -93,6 +145,8 @@ $MDSTAT
 
 Sincerely,
 $HOSTNAME
+
+$loglines
 
 OUTMAIL
 fi
