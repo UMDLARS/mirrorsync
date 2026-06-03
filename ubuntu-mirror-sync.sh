@@ -2,12 +2,13 @@
 ## Mirror Synchronization Script /usr/local/bin/ubuntu-mirror-sync.sh
 ## Version 1.01 Updated 13 Feb 2007 by Peter Noble
 
-## Point our log file to somewhere and setup our admin email
+## Point our log file to somewhere
 log=/var/log/mirrorsync.log
 
-#adminmail=pahp@d.umn.edu,grif0735@d.umn.edu
-adminmail=pahp@d.umn.edu
-# Set to 0 if you do not want to receive email
+# who should get emails (comma-separated, no spaces!)
+adminmail=pahp@d.umn.edu,grif0735@d.umn.edu
+
+# Set to 0 if you do not want to receive email for some reason
 sendemail=1
 
 # Subject is the subject of our email
