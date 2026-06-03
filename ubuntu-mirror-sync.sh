@@ -5,6 +5,7 @@
 ## Point our log file to somewhere and setup our admin email
 log=/var/log/mirrorsync.log
 
+#adminmail=pahp@d.umn.edu,grif0735@d.umn.edu
 adminmail=pahp@d.umn.edu
 # Set to 0 if you do not want to receive email
 sendemail=1
@@ -116,6 +117,16 @@ done
 if [[ -x /usr/bin/mail && "$sendemail" -eq "1" ]]; then
 
 MDSTAT=$(cat /proc/mdstat | grep -v "Personalities" | grep -v "unused devices")
+RAIDSTATUS="RAIDs are not degraded."
+
+# check to see that both RAIDs are completely up.
+if ! cat /proc/mdstat | grep -v "Personalities" | grep "[UUU]" > /dev/null &&
+	cat /proc/mdstat | grep -v "Personalities" | grep "[UU]" > /dev/null
+then
+	RAIDSTATUS="One or more RAID devices is degraded! Please inspect manually!"
+	failures=$(( failures + 1))
+fi
+	
 DISKFULL=$(df -h | grep "/dev/md")
 
 if (( failures > 0 ))
@@ -142,6 +153,7 @@ $DISKFULL
 
 RAID1 Status:
 $MDSTAT
+$RAIDSTATUS
 
 Sincerely,
 $HOSTNAME
