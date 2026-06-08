@@ -121,7 +121,8 @@ MDSTAT=$(cat /proc/mdstat | grep -v "Personalities" | grep -v "unused devices")
 RAIDSTATUS="RAIDs are not degraded."
 
 # check to see that both RAIDs are completely up.
-if ! cat /proc/mdstat | grep -v "Personalities" | grep "[UUU]" > /dev/null &&
+if ! cat /proc/mdstat | grep "finish" ||
+	cat /proc/mdstat | grep -v "Personalities" | grep "[UUU]" > /dev/null &&
 	cat /proc/mdstat | grep -v "Personalities" | grep "[UU]" > /dev/null
 then
 	RAIDSTATUS="One or more RAID devices is degraded! Please inspect manually!"
